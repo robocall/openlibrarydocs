@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open Library search demo</title>
+  <style>
+    :root {
+      font-family: system-ui, sans-serif;
+      line-height: 1.45;
+      color: #1a1a1a;
+      background: #f5f5f4;
+    }
+
+    body {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 650;
+      margin: 0 0 0.5rem;
+    }
+
+    p.lead {
+      margin: 0 0 1.25rem;
+      color: #444;
+      font-size: 0.95rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      color: #333;
+    }
+
+    input,
+    textarea,
+    select,
+    button {
+      font: inherit;
+    }
+
+    textarea#q {
+      width: 100%;
+      min-height: 4.5rem;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      resize: vertical;
+    }
+
+    .row {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    @media (min-width: 36rem) {
+      .row.cols-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 0.45rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 0.55rem 1rem;
+      background: #036;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      background: #024;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .url-out {
+      font-size: 0.75rem;
+      word-break: break-all;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 0.5rem 0.6rem;
+      margin: 0.75rem 0 1rem;
+      color: #333;
+    }
+
+    .url-out strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #666;
+    }
+
+    .error {
+      background: #fff0f0;
+      border: 1px solid #eaa;
+      color: #611;
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      margin: 0.75rem 0;
+      font-size: 0.9rem;
+      white-space: pre-line;
+    }
+
+    .callout {
+      background: #eef6ff;
+      border: 1px solid #9ac;
+      color: #234;
+      padding: 0.65rem 0.85rem;
+      border-radius: 6px;
+      margin: 0 0 1rem;
+      font-size: 0.88rem;
+    }
+
+    .meta {
+      font-size: 0.85rem;
+      color: #555;
+      margin: 0.5rem 0 1rem;
+    }
+
+    ul.results {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    ul.results li {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.6rem;
+    }
+
+    ul.results a.title {
+      font-weight: 650;
+      color: #036;
+      text-decoration: none;
+    }
+
+    ul.results a.title:hover {
+      text-decoration: underline;
+    }
+
+    ul.results .sub {
+      font-size: 0.85rem;
+      color: #555;
+      margin-top: 0.35rem;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Open Library book search</h1>
+  <p class="lead">
+    Edit the search query (<code>q</code>) and options below. We call
+    <code>search.json</code> with <code>fetch</code> and list each work with a
+    link to Open Library.
+  </p>
+
+  <p class="callout">
+    <strong>Run this page from a local server</strong> (e.g.
+    <code>python3 -m http.server 8080</code> in this folder, then open
+    <code>http://127.0.0.1:8080</code>). Opening <code>index.html</code> as a
+    <code>file://</code> URL or inside an IDE preview often makes
+    <code>fetch</code> fail with “Failed to fetch.”
+  </p>
+
+  <form id="form" action="javascript:void(0)">
+    <label for="q">Search query (<code>q</code>)</label>
+    <textarea id="q" name="q"
+      spellcheck="false">subject:economics AND lexile:[900 TO 1200] AND osp_count:[1 TO *]</textarea>
+
+    <div class="row cols-2">
+      <div>
+        <label for="sort">Sort (optional)</label>
+        <select id="sort" name="sort">
+          <option value="">(default — relevance)</option>
+          <option value="osp_count desc" selected>osp_count desc</option>
+          <option value="osp_count asc">osp_count asc</option>
+          <option value="lexile asc">lexile asc (client)</option>
+          <option value="lexile desc">lexile desc (client)</option>
+          <option value="new">new (first publish year)</option>
+          <option value="old">old</option>
+          <option value="title">title</option>
+        </select>
+      </div>
+      <div>
+        <label for="limit">Limit</label>
+        <input id="limit" name="limit" type="number" min="1" max="100" value="20" />
+      </div>
+    </div>
+
+    <button type="submit" id="go">Search</button>
+  </form>
+
+  <div class="url-out" id="urlPreview" hidden>
+    <strong>Request URL</strong>
+    <span id="urlText"></span>
+  </div>
+
+  <div id="error" class="error" hidden></div>
+  <p id="meta" class="meta" hidden></p>
+  <ul id="results" class="results"></ul>
+
+  <p style="font-size: 0.8rem; color: #666; margin-top: 2rem">
+    Tip: open this folder with a tiny local server so the page loads reliably, e.g.
+    <code>cd book-search-demo && python3 -m http.server 8080</code>
+    then visit <code>http://127.0.0.1:8080</code>.
+  </p>
+
+  <script>
+    const API = "https://openlibrary.org/search.json";
+    const FIELDS = ["key", "title", "author_name", "lexile", "osp_count"].join(
+      ","
+    );
+
+    const form = document.getElementById("form");
+    const qEl = document.getElementById("q");
+    const sortEl = document.getElementById("sort");
+    const limitEl = document.getElementById("limit");
+    const goBtn = document.getElementById("go");
+    const urlPreview = document.getElementById("urlPreview");
+    const urlText = document.getElementById("urlText");
+    const errorEl = document.getElementById("error");
+    const metaEl = document.getElementById("meta");
+    const resultsEl = document.getElementById("results");
+
+    /** Open Library work search does not support sort=lexile (Solr 500); we sort in the browser. */
+    function isClientLexileSort() {
+      const s = sortEl.value.trim();
+      return s === "lexile asc" || s === "lexile desc";
+    }
+
+    function buildUrl() {
+      const params = new URLSearchParams();
+      params.set("q", qEl.value.trim());
+      params.set("fields", FIELDS);
+      params.set("limit", String(Math.min(100, Math.max(1, Number(limitEl.value) || 20))));
+      const sort = sortEl.value.trim();
+      if (sort && !isClientLexileSort()) params.set("sort", sort);
+      return `${API}?${params.toString()}`;
+    }
+
+    function lexileToNumber(lexile) {
+      if (lexile == null) return null;
+      if (Array.isArray(lexile)) {
+        if (lexile.length === 0) return null;
+        const n = lexile[0];
+        if (n === "" || n == null) return null;
+        const x = Number(n);
+        return Number.isFinite(x) ? x : null;
+      }
+      if (lexile === "") return null;
+      const x = Number(lexile);
+      return Number.isFinite(x) ? x : null;
+    }
+
+    /** Missing Lexile always sorts last (bottom), for both asc and desc. */
+    function sortDocsByLexile(docs, direction) {
+      const mult = direction === "asc" ? 1 : -1;
+      return [...docs].sort((a, b) => {
+        const na = lexileToNumber(a.lexile);
+        const nb = lexileToNumber(b.lexile);
+        const aMissing = na == null;
+        const bMissing = nb == null;
+        if (aMissing !== bMissing) return aMissing ? 1 : -1;
+        if (aMissing && bMissing) {
+          return (a.title || "").localeCompare(b.title || "", undefined, {
+            sensitivity: "base",
+          });
+        }
+        const cmp = mult * (na - nb);
+        if (cmp !== 0) return cmp;
+        return (a.title || "").localeCompare(b.title || "", undefined, {
+          sensitivity: "base",
+        });
+      });
+    }
+
+    function workUrl(key) {
+      if (!key || typeof key !== "string") return "#";
+      return `https://openlibrary.org${key}`;
+    }
+
+    function formatLexile(lexile) {
+      if (lexile == null) return "—";
+      if (Array.isArray(lexile)) return lexile.join(", ");
+      return String(lexile);
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.hidden = false;
+    }
+
+    /** Browser shows a generic "Failed to fetch" for CORS, offline, blocked, or file:// issues. */
+    function formatFetchError(err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const generic =
+        /failed to fetch|load failed|networkerror|network request failed/i.test(
+          msg
+        );
+      if (generic) {
+        return [
+          "Failed to fetch — the browser could not complete the request to openlibrary.org.",
+          "",
+          "Common fixes:",
+          "• Serve this folder with a local server (not file://): python3 -m http.server 8080 → http://127.0.0.1:8080",
+          "• Use a normal browser tab (Chrome/Safari), not an embedded IDE preview.",
+          "• Check network; pause ad-blockers for openlibrary.org if needed.",
+        ].join("\n");
+      }
+      return msg;
+    }
+
+    function clearError() {
+      errorEl.hidden = true;
+      errorEl.textContent = "";
+    }
+
+    async function runSearch() {
+      clearError();
+      resultsEl.innerHTML = "";
+      metaEl.hidden = true;
+
+      const q = qEl.value.trim();
+      if (!q) {
+        showError("Enter a search query.");
+        return;
+      }
+
+      const url = buildUrl();
+      urlText.textContent = url;
+      urlPreview.hidden = false;
+
+      goBtn.disabled = true;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const found = data.num_found ?? data.numFound ?? 0;
+        let docs = data.docs ?? [];
+
+        const sortVal = sortEl.value.trim();
+        if (sortVal === "lexile asc") {
+          docs = sortDocsByLexile(docs, "asc");
+        } else if (sortVal === "lexile desc") {
+          docs = sortDocsByLexile(docs, "desc");
+        }
+
+        let metaParts = [
+          `${found.toLocaleString()} total matches`,
+          `showing ${docs.length}`,
+        ];
+        if (isClientLexileSort()) {
+          metaParts.push("sorted by Lexile in this page (client)");
+        }
+        metaEl.textContent = metaParts.join(" · ");
+        metaEl.hidden = false;
+
+        if (docs.length === 0) {
+          const li = document.createElement("li");
+          li.textContent = "No results in this page. Try widening your query (see economics-curriculum-search-demo.md).";
+          resultsEl.appendChild(li);
+          return;
+        }
+
+        for (const doc of docs) {
+          const li = document.createElement("li");
+          const title = doc.title || "(no title)";
+          const href = workUrl(doc.key);
+
+          const a = document.createElement("a");
+          a.className = "title";
+          a.href = href;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = title;
+
+          const authors = Array.isArray(doc.author_name)
+            ? doc.author_name.join(", ")
+            : "";
+          const lex = formatLexile(doc.lexile);
+          const osp =
+            doc.osp_count != null ? String(doc.osp_count) : "—";
+
+          const sub = document.createElement("div");
+          sub.className = "sub";
+          sub.innerHTML = [
+            authors ? `Authors: ${authors}` : "",
+            `Lexile: ${lex}`,
+            `OSP count: ${osp}`,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          li.appendChild(a);
+          li.appendChild(sub);
+          resultsEl.appendChild(li);
+        }
+      } catch (e) {
+        showError(formatFetchError(e));
+      } finally {
+        goBtn.disabled = false;
+      }
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      runSearch();
+    });
+
+    // Optional: run once so the page isn’t empty
+    // runSearch();
+  </script>
+</body>
+
+</html>
