@@ -19,6 +19,7 @@ Paste queries into the [search box](https://openlibrary.org/search).
 | `subject` | What the book is about. | Community members contribute "subject tags", which are fuzzy, open-field phrases. There is no official master list of subject tags, and books about the same concept may have different tags (for example, a book may have "tennis" but not "sports", or vice versa.) | `subject:tennis rules` → subjects include **tennis** and **rules**<br><br>`subject:"civil rights"` → subject would include the entire phrase “civil rights”<br><br>`subject:biography` → biographies |
 | `language` | **Language** of at least one edition. | [ISO 639-2 three-letter codes](https://www.loc.gov/standards/iso639-2/php/code_list.php) such as `eng`, `spa`, `jpn`. | `language:spa` → at least one Spanish edition |
 | `publisher` | **Publisher** name on editions. | There is no official list, and there can be many variants of strings to refer to one publisher. | `publisher:harper` → publisher string contains “harper”. |
+| `ebook_access` | **Online readability** for the work (best edition’s access level in the index). | `no_ebook`, `unclassified`, `printdisabled` (preview-only for print-disabled users), `borrowable`, `public`. | `ebook_access:no_ebook AND -ia:*` → a range spanning anything **borrowable** or **public**<br><br>`ebook_access:no_ebook AND -ia:* AND readinglog_count:[25 TO *]` → highly requested books that the Internet Archive does not have |
 | `publish_year` | **Publication year** of edition(s). | Integers; Solr range syntax `[low TO high]`, `[* TO YYYY]` for “up to”. | `publish_year:2002` → published in 2002<br><br>`publish_year:[* TO 1800]` → published any time before 1800<br><br>`publish_year:[1900 TO 1950]` → published between 1900–1950 |
 | `number_of_pages` | **Page count** for an edition (when the catalog has it). | Non-negative integers; Solr range syntax. | `number_of_pages:[400 TO *]` → editions with 400+ pages<br><br>|
 | `first_publish_year` | **First year** the work was published (not a specific edition’s year). | Integers; Solr range syntax. Note: there is **no dedicated UI** for this on the main search yet—type it in the query box. | `first_publish_year:[1200 TO 1400]` → first published between 1200 and 1400. |
@@ -147,15 +148,27 @@ For example, to create a civil rights curriculum for elementary school children,
 - `title_suggest:"vitamin a"` — uses the [non-stemmed](https://en.wikipedia.org/wiki/Stemming) suggest field.  
 - `subject:travel place:istanbul` — books about travel in Istanbul.  
 
-**Exact keys:** use `subject_key`, `place_key`, `time_key`, or `person_key` with a normalized value: lowercase, spaces and characters like `/` turned into underscores, e.g.  
-`Metropolitan Museum of Art (New York, N.Y.)` → `metropolitan_museum_of_art_(new_york_n.y.)`.
+There are multiple ways to search for books by a subject. The primary way is to use the subject: field which will do a fuzzy search for any books with subjects containing your search (e.g. subject:happy would match a subject of "happy feet"). This is also the case for place, time, and person.
 
-**Negative filter:** prefix with `-` on the key field, e.g. exclude a subject:
+An exact subject match can be performed using the subject_key: field. Presently, this value needs to be normalized such that spaces and special characters like / become underscores and the entire term becomes lowercased. For instance (a subject like "Metropolitan Museum of Art (New York, N.Y.)" becomes metropolitan_museum_of_art_(new_york_n.y.)). Here's the code behind the scenes for those who need more details. Note that _key can be added to place, time, and person to achieve the same exact matching capabilities.
 
-- [Solr but not “Apache Solr” as subject](https://openlibrary.org/search?q=solr+-subject_key%3A%22apache_solr%22&mode=everything)  
-- [Machine learning but not “Python” as subject](https://openlibrary.org/search?q=machine+learning+-subject_key%3A%22python%22&mode=everything)  
+place:rome will find you subjects about Rome that relate to the city; the place. Other types are time & person.
+To do a negative search on Open Library, you can use the -subject_key operator. For example, to find all the books that show up for the word "solr" that don't have the subject "Apache Solr", you would use the following search query:
 
-Exact subject example: `subject_key:fantasy`.
+https://openlibrary.org/search?q=solr+-subject_key%3A%22apache_solr%22&mode=everything
+
+Note that the subject key is the subject name with some normalization applied (lower case, spaces converted to underscores).
+
+Here is an example of a negative search in action:
+
+https://openlibrary.org/search?q=machine+learning+-subject_key%3A%22python%22&mode=everything
+
+This search will return all the books about machine learning that do not have the subject "Python".
+
+Negative searches can be useful for finding books on a specific topic that are not limited to a particular programming language or framework. They can also be used to find books that are more general in nature.
+
+Perform an exact search for subject using the subject_key field, e.g:
+subject_key:fantasy
 
 ## Developer API
 Use `/search.json?` instead of `/search?` in the URL for JSON responses. See the [Developer Center](https://openlibrary.org/developers) and [Search API](https://openlibrary.org/dev/docs/api/search) documentation. The Search API provides the ability to sort, paginate, and limit the number of results, which is not currently available on the UI.
@@ -176,4 +189,7 @@ Search is fuzzy and imprecise by default. A book can surface because a substring
 Curriculum builders should expect to combine headings (`subject:"civil rights" AND subject:history`), try synonyms, or start from known good books and reuse their exact `subject_key` values.
 
 ### Can I limit results to a single-word title (e.g. “hands”)?
-Not directly. Workarounds on the [live howto](https://openlibrary.org/search/howto) mention excluding words and alphabetical search; see the linked discussion there.
+It is not possible to do this currently but you could try excluding some words from the title and using alphabetical search (see this alphabetical search issue)[https://github.com/internetarchive/openlibrary/issues/2796] like [this](https://openlibrary.org/search?language=eng&page=83&sort=title&q=title%3Ahands+-title%3Aa+-title%3Athe+-title%3Aand+-title%3Aan+-title%3Ain+-title%3Aon+-title%3Ato+-title%3Afor+-title%3Abook+-title%3Aoff+-title%3Aup+-title%3Aover+-title%3Aof+-title%3Aall+-title%3Apuppet+-title%3Aher+-title%3Atools+-title%3Abare+-title%3Abasic&mode=everything).
+
+### More resources
+Some of these tips are demonstrated in this [instructional video](youtube.com/watch?v=ki3ySbC1bHs&feature=youtu.be).
